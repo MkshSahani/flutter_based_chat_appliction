@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+final _firebase = FirebaseAuth.instance;
 
 
 class AuthScreen extends StatefulWidget {
@@ -16,6 +18,40 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
 
   var _isLogin = true;
+
+  final _formKey = GlobalKey<FormState>();
+
+  var _userEmailAddress = '';
+  var _userPassword = '';
+
+  _submit() async {
+    final isValid = _formKey.currentState!.validate();
+    if(!isValid) {
+      return;
+    }
+
+    _formKey.currentState!.save();
+    if(_isLogin) {
+      try {
+        final userCredential = await _firebase.signInWithEmailAndPassword(email: _userEmailAddress, password: _userPassword);
+        print("=================================================");
+        print(userCredential);
+        print("=================================================");
+      } on FirebaseAuthException catch(error) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message ?? "Autentication Failed")));
+      }
+    } else {
+      try {
+        final userCredentials = await _firebase.createUserWithEmailAndPassword(email: _userEmailAddress, password: _userPassword);
+        print(userCredentials);
+      } on FirebaseAuthException catch(e) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Autentication Failed")));
+      }
+    }
+
+  }
 
 
   @override
@@ -43,6 +79,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Form(
+                      key: _formKey,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -52,13 +89,16 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             keyboardType: TextInputType.emailAddress,
                             autocorrect: false,
+                            textCapitalization: TextCapitalization.none,
                             validator: (value) {
                               if(value == null || value.trim().isEmpty || !value.contains('@')) {
-                                return "Please ener value email address";
+                                return "Please enter valid email address";
                               }
                               return null;
                             },
-                            textCapitalization: TextCapitalization.none,
+                            onSaved: (value) {
+                              _userEmailAddress = value!;
+                            },
                           ),
                           TextFormField(
                             decoration: const InputDecoration(
@@ -66,16 +106,17 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             obscureText: true,
                             validator: (value) {
-                              if(value == null || value.trim().isEmpty) {
-                                return "Password can\'t be empty";
+                              if(value == null || value.trim().length < 6) {
+                                return "Password must be atlease 6 character long";
                               }
                               return null;
                             },
+                            onSaved: (value) {
+                              _userPassword = value!;
+                            },
                           ),
                           const SizedBox(height: 12,),
-                          ElevatedButton(onPressed: () {
-
-                          }, 
+                          ElevatedButton(onPressed: _submit, 
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).colorScheme.primaryContainer
                           ),
