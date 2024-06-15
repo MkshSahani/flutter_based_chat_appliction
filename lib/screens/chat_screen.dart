@@ -8,7 +8,10 @@ class ChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      appBar: AppBar(
+        title: const Text("Flutter Chat"),
+      ),
+      body: const Center(
         child: Text("Chat Screen"),
       ),
     );
