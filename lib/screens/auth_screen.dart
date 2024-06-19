@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chat_app/widgets/user_image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
 final _firebase = FirebaseAuth.instance;
@@ -26,6 +27,7 @@ class _AuthScreenState extends State<AuthScreen> {
   var _userEmailAddress = '';
   var _userPassword = '';
   File? _selectedImage;
+  var _isAuthenticating = false;
 
 
   void onPickImage(File pickedImage) {
@@ -43,19 +45,36 @@ class _AuthScreenState extends State<AuthScreen> {
     _formKey.currentState!.save();
     if(_isLogin) {
       try {
+        setState(() {
+          _isAuthenticating = true;
+        });
         final userCredential = await _firebase.signInWithEmailAndPassword(email: _userEmailAddress, password: _userPassword);
       } on FirebaseAuthException catch(error) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message ?? "Autentication Failed")));
       }
+      setState(() {
+        _isAuthenticating = false;
+      });
     } else {
       try {
+        setState(() {
+          _isAuthenticating = true;
+        });
         final userCredentials = await _firebase.createUserWithEmailAndPassword(email: _userEmailAddress, password: _userPassword);
         print(userCredentials);
+        final storageRef = FirebaseStorage.instance.ref().child("user-image").child("${userCredentials.user!.uid}.jpg");
+        await storageRef.putFile(_selectedImage!);
+        final imageUrl = await storageRef.getDownloadURL();
+        print(imageUrl);
+
       } on FirebaseAuthException catch(e) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Autentication Failed")));
       }
+      setState(() {
+        _isAuthenticating = false;
+      });
     }
 
   }
@@ -125,13 +144,17 @@ class _AuthScreenState extends State<AuthScreen> {
                             },
                           ),
                           const SizedBox(height: 12,),
-                          ElevatedButton(onPressed: _submit, 
+                          if(_isAuthenticating)
+                            CircularProgressIndicator(color: Theme.of(context).colorScheme.primary,),
+                          if(!_isAuthenticating)
+                            ElevatedButton(onPressed: _submit, 
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).colorScheme.primaryContainer
                           ),
                           child: Text(_isLogin ? "Log in" : "Sign up")),
                           const SizedBox(height: 12,),
-                          TextButton(onPressed: () {
+                          if(!_isAuthenticating)
+                            TextButton(onPressed: () {
                             setState(() {
                               _isLogin = !_isLogin;
                             });
